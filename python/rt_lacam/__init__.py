@@ -6,4 +6,4 @@ Zig-powered incremental MAPF solver with Python bindings via cffi.
 from rt_lacam._bindings import RTLaCAM
 
 __all__ = ["RTLaCAM"]
-__version__ = "0.1.0"
+__version__ = "0.1.2"

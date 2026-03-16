@@ -13,7 +13,7 @@ from rt_lacam import RTLaCAM
 
 class TestVersion:
     def test_version_string(self):
-        assert RTLaCAM.version() == "0.1.0"
+        assert RTLaCAM.version() == "0.1.2"
 
 
 class TestSingleAgent:

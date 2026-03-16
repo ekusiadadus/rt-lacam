@@ -20,7 +20,7 @@ const Solver = @import("solver.zig").Solver;
 
 /// Return library version as packed integer: 0xMMmmpp (major, minor, patch).
 export fn rtlacam_version() callconv(.c) u32 {
-    return 0x000100; // 0.1.0
+    return 0x000102; // 0.1.2
 }
 
 /// Create a new RT-LaCAM solver instance.

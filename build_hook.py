@@ -1,4 +1,4 @@
-"""Hatch custom build hook: compile Zig shared library and include in wheel."""
+"""Hatch custom build hook: compile Zig shared library and set platform wheel tag."""
 
 from __future__ import annotations
 
@@ -11,7 +11,11 @@ from pathlib import Path
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 
-class CustomBuildHook(BuildHookInterface):
+class ZigBuildHook(BuildHookInterface):
+    """Build hook that compiles the Zig native library and sets wheel tags."""
+
+    PLUGIN_NAME = "zig-build"
+
     def initialize(self, version: str, build_data: dict) -> None:
         root = Path(self.root)
         lib_name = _lib_name()
@@ -33,11 +37,9 @@ class CustomBuildHook(BuildHookInterface):
         # Copy library into Python package
         shutil.copy2(lib_src, lib_dst)
 
-        # Include the shared library in the wheel
-        build_data["shared-data"] = {}
-        build_data.setdefault("force-include", {})[
-            str(lib_dst)
-        ] = f"rt_lacam/{lib_name}"
+        # Set platform-specific wheel tag (not pure Python)
+        build_data["pure_python"] = False
+        build_data["tag"] = _wheel_tag()
 
 
 def _lib_name() -> str:
@@ -49,6 +51,34 @@ def _lib_name() -> str:
     elif system == "Windows":
         return "rt_lacam.dll"
     return "librt_lacam.so"
+
+
+def _wheel_tag() -> str:
+    """Generate platform-specific wheel tag.
+
+    Format: {python_tag}-{abi_tag}-{platform_tag}
+    e.g. py3-none-macosx_14_0_arm64, py3-none-manylinux_2_17_x86_64
+    """
+    system = platform.system()
+    machine = platform.machine()
+
+    if system == "Darwin":
+        # Use macOS 14.0 as minimum for arm64
+        if machine == "arm64":
+            return "py3-none-macosx_14_0_arm64"
+        return "py3-none-macosx_13_0_x86_64"
+    elif system == "Linux":
+        if machine == "x86_64":
+            return "py3-none-manylinux_2_17_x86_64"
+        elif machine == "aarch64":
+            return "py3-none-manylinux_2_17_aarch64"
+    elif system == "Windows":
+        if machine == "AMD64":
+            return "py3-none-win_amd64"
+
+    # Fallback
+    plat = f"{system.lower()}_{machine}"
+    return f"py3-none-{plat}"
 
 
 def _build_zig(root: Path) -> None:
