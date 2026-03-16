@@ -1,0 +1,49 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rt-lacam"
+version = "0.1.0"
+description = "Real-Time LaCAM: incremental MAPF solver with completeness guarantees"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "ekusiadadus" }]
+keywords = ["mapf", "multi-agent", "path-finding", "lacam", "real-time"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = ["cffi>=1.15"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-cov>=4.0"]
+
+[project.urls]
+Repository = "https://github.com/ekusiadadus/rt-lacam"
+
+[tool.hatch.build.targets.wheel]
+packages = ["python/rt_lacam"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "python/",
+    "src/",
+    "build.zig",
+    "build.zig.zon",
+    "tests/",
+    "pyproject.toml",
+    "README.md",
+    "LICENSE",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

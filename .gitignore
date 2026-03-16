@@ -1,0 +1,23 @@
+# Build artifacts
+zig-out/
+.zig-cache/
+dist/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Compiled shared libraries in package dir (built per-platform)
+python/rt_lacam/*.dylib
+python/rt_lacam/*.so
+python/rt_lacam/*.dll
+
+# OS
+.DS_Store
+
+# Lock files (library, not application)
+uv.lock
