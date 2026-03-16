@@ -150,6 +150,62 @@ class TestValidation:
         with pytest.raises(ValueError, match="mismatch"):
             RTLaCAM(grid, starts=[(0, 0)], goals=[(1, 1), (2, 2)])
 
+    def test_start_on_obstacle_raises(self):
+        grid = [[1, 0], [1, 1]]
+        with pytest.raises(ValueError, match="obstacle"):
+            RTLaCAM(grid, starts=[(0, 1)], goals=[(1, 1)])
+
+    def test_goal_on_obstacle_raises(self):
+        grid = [[1, 0], [1, 1]]
+        with pytest.raises(ValueError, match="obstacle"):
+            RTLaCAM(grid, starts=[(0, 0)], goals=[(0, 1)])
+
+    def test_duplicate_starts_raises(self):
+        grid = [[1] * 3 for _ in range(3)]
+        with pytest.raises(ValueError, match="Duplicate start"):
+            RTLaCAM(grid, starts=[(0, 0), (0, 0)], goals=[(2, 2), (1, 1)])
+
+    def test_duplicate_goals_raises(self):
+        grid = [[1] * 3 for _ in range(3)]
+        with pytest.raises(ValueError, match="Duplicate goal"):
+            RTLaCAM(grid, starts=[(0, 0), (1, 1)], goals=[(2, 2), (2, 2)])
+
+
+class TestIsSolved:
+    def test_is_solved_when_at_goal(self):
+        grid = [[1] * 3 for _ in range(3)]
+        with RTLaCAM(grid, starts=[(0, 0)], goals=[(2, 2)]) as solver:
+            assert not solver.is_solved([(0, 0)])
+            assert solver.is_solved([(2, 2)])
+
+    def test_is_solved_multi_agent(self):
+        grid = [[1] * 5 for _ in range(5)]
+        with RTLaCAM(
+            grid,
+            starts=[(0, 0), (4, 4)],
+            goals=[(4, 4), (0, 0)],
+        ) as solver:
+            assert not solver.is_solved([(0, 0), (4, 4)])
+            assert not solver.is_solved([(4, 4), (4, 4)])
+            assert solver.is_solved([(4, 4), (0, 0)])
+
+    def test_is_solved_wrong_length_returns_false(self):
+        grid = [[1] * 3 for _ in range(3)]
+        with RTLaCAM(grid, starts=[(0, 0)], goals=[(2, 2)]) as solver:
+            assert not solver.is_solved([(0, 0), (1, 1)])
+
+    def test_has_goal_vs_is_solved_semantics(self):
+        """has_goal means path found in search tree, NOT physical arrival."""
+        grid = [[1] * 5 for _ in range(5)]
+        with RTLaCAM(grid, starts=[(0, 0)], goals=[(4, 4)], seed=42) as solver:
+            result = solver.step(deadline_ms=5000)
+            if solver.has_goal:
+                # has_goal can be True even when agent hasn't moved to goal
+                assert result is not None
+                # Agent just took one step — unlikely to be at (4,4) already
+                if result[0] != (4, 4):
+                    assert not solver.is_solved(result)
+
 
 class TestLaCAMStar:
     def test_lacam_star_finds_solution(self):

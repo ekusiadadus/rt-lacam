@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rt-lacam"
-version = "0.1.0"
+version = "0.1.1"
 description = "Real-Time LaCAM: incremental MAPF solver with completeness guarantees"
 readme = "README.md"
 license = "MIT"
@@ -30,6 +30,11 @@ dev = ["pytest>=7.0", "pytest-cov>=4.0"]
 [project.urls]
 Repository = "https://github.com/ekusiadadus/rt-lacam"
 
+# NOTE: This package contains a platform-specific native library.
+# The wheel is source-build only: users must have Zig >= 0.15.0 installed.
+# Do NOT upload py3-none-any wheels to PyPI — build platform-specific wheels
+# per target (macos-arm64, linux-x86_64, etc.) via CI.
+
 [tool.hatch.build.targets.wheel]
 packages = ["python/rt_lacam"]
 
@@ -39,10 +44,13 @@ include = [
     "src/",
     "build.zig",
     "build.zig.zon",
+    "build_hook.py",
+    "build_wheel.py",
     "tests/",
     "pyproject.toml",
     "README.md",
     "LICENSE",
+    ".gitignore",
 ]
 
 [tool.pytest.ini_options]

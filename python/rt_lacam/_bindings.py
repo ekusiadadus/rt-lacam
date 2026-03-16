@@ -131,12 +131,16 @@ class RTLaCAM:
         if n_agents == 0:
             raise ValueError("Must have at least 1 agent")
 
-        # Validate coordinates are within grid bounds
+        # Validate coordinates are within grid bounds and on passable cells
         for i, (sy, sx) in enumerate(starts):
             if not (0 <= sy < height and 0 <= sx < width):
                 raise ValueError(
                     f"Start position {i} ({sy}, {sx}) is outside "
                     f"grid bounds ({height}x{width})"
+                )
+            if not grid[sy][sx]:
+                raise ValueError(
+                    f"Start position {i} ({sy}, {sx}) is on an obstacle"
                 )
         for i, (gy, gx) in enumerate(goals):
             if not (0 <= gy < height and 0 <= gx < width):
@@ -144,6 +148,18 @@ class RTLaCAM:
                     f"Goal position {i} ({gy}, {gx}) is outside "
                     f"grid bounds ({height}x{width})"
                 )
+            if not grid[gy][gx]:
+                raise ValueError(
+                    f"Goal position {i} ({gy}, {gx}) is on an obstacle"
+                )
+
+        # Validate no duplicate starts or goals
+        start_set = set(tuple(s) for s in starts)
+        if len(start_set) != n_agents:
+            raise ValueError("Duplicate start positions are not allowed")
+        goal_set = set(tuple(g) for g in goals)
+        if len(goal_set) != n_agents:
+            raise ValueError("Duplicate goal positions are not allowed")
 
         # Flatten grid to uint8 array
         grid_buf = _ffi.new("uint8_t[]", width * height)
@@ -178,6 +194,7 @@ class RTLaCAM:
             raise MemoryError("Failed to create RT-LaCAM solver")
 
         self._n_agents = n_agents
+        self._goals = list(goals)
         self._out_buf = _ffi.new("int32_t[]", n_agents * 2)
 
     def __del__(self) -> None:
@@ -247,10 +264,31 @@ class RTLaCAM:
 
     @property
     def has_goal(self) -> bool:
-        """Whether a goal configuration has been found."""
+        """Whether a goal configuration has been found in the search tree.
+
+        NOTE: This does NOT mean agents have physically reached the goal.
+        It means the solver has found a path to the goal configuration.
+        Use is_solved(current_positions) to check if agents are at goals.
+        """
         if self._handle == _ffi.NULL:
             return False
         return bool(_lib.rtlacam_has_goal(self._handle))
+
+    def is_solved(self, current: Sequence[Coord]) -> bool:
+        """Check if agents are physically at their goal positions.
+
+        Args:
+            current: actual agent positions as list of (y, x) tuples.
+
+        Returns:
+            True if all agents are at their respective goals.
+        """
+        if len(current) != self._n_agents:
+            return False
+        for (cy, cx), (gy, gx) in zip(current, self._goals):
+            if cy != gy or cx != gx:
+                return False
+        return True
 
     @staticmethod
     def version() -> str:

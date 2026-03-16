@@ -56,8 +56,9 @@ with RTLaCAM(grid, starts=[(0, 0)], goals=[(4, 4)]) as solver:
         if result is not None:
             pos = result
             solver.reroot(pos)  # re-root search tree
-        if solver.has_goal:
-            print(f"Goal found at step {step}!")
+        # Check if agents are physically at goals (not just path found)
+        if solver.is_solved(pos):
+            print(f"All agents reached goals at step {step}!")
             break
 ```
 
@@ -81,7 +82,7 @@ for _ in range(200):
     if result:
         positions = result
         solver.reroot(positions)
-    if solver.has_goal:
+    if solver.is_solved(positions):
         break
 
 solver.close()
@@ -107,9 +108,13 @@ Run incremental DFS for up to `deadline_ms` milliseconds. Returns next positions
 
 Re-root the search tree after agents have moved. Call this with the actual new positions.
 
+### `solver.is_solved(current_positions) -> bool`
+
+Whether all agents are physically at their respective goal positions. Use this to determine when to stop the planning loop.
+
 ### `solver.has_goal -> bool`
 
-Whether a goal configuration has been found in the search tree.
+Whether a goal configuration has been found in the search tree. **Note:** this does NOT mean agents have reached the goal — it means the solver has found a path. Use `is_solved()` to check physical arrival.
 
 ### `solver.explored_size -> int`
 
