@@ -37,6 +37,8 @@ Repository = "https://github.com/ekusiadadus/rt-lacam"
 
 [tool.hatch.build.targets.wheel]
 packages = ["python/rt_lacam"]
+# Include platform-specific native libraries that are not tracked in git
+artifacts = ["*.dylib", "*.so", "*.dll"]
 
 [tool.hatch.build.targets.sdist]
 include = [
