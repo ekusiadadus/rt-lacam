@@ -165,10 +165,14 @@ class TestValidation:
         with pytest.raises(ValueError, match="Duplicate start"):
             RTLaCAM(grid, starts=[(0, 0), (0, 0)], goals=[(2, 2), (1, 1)])
 
-    def test_duplicate_goals_raises(self):
+    def test_duplicate_goals_allowed(self):
+        """Duplicate goals are allowed for stay-goal idle agent model."""
         grid = [[1] * 3 for _ in range(3)]
-        with pytest.raises(ValueError, match="Duplicate goal"):
-            RTLaCAM(grid, starts=[(0, 0), (1, 1)], goals=[(2, 2), (2, 2)])
+        with RTLaCAM(grid, starts=[(0, 0), (1, 1)], goals=[(2, 2), (2, 2)]) as solver:
+            result = solver.step(deadline_ms=1000)
+            # Both agents can target the same goal — solver plans collision-free
+            if result is not None:
+                assert result[0] != result[1]
 
 
 class TestIsSolved:

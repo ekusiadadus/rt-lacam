@@ -153,13 +153,12 @@ class RTLaCAM:
                     f"Goal position {i} ({gy}, {gx}) is on an obstacle"
                 )
 
-        # Validate no duplicate starts or goals
+        # Validate no duplicate starts (physical constraint)
         start_set = set(tuple(s) for s in starts)
         if len(start_set) != n_agents:
             raise ValueError("Duplicate start positions are not allowed")
-        goal_set = set(tuple(g) for g in goals)
-        if len(goal_set) != n_agents:
-            raise ValueError("Duplicate goal positions are not allowed")
+        # Duplicate goals are allowed — idle agents may share goals
+        # with active agents (stay-goal model for lifelong MAPF)
 
         # Flatten grid to uint8 array
         grid_buf = _ffi.new("uint8_t[]", width * height)
