@@ -165,7 +165,7 @@ RT-LaCAM (Liang et al., 2025) extends LaCAM (Okumura, 2023) for real-time, lifel
 
 This implementation is based on the following papers. We are grateful to the authors for their foundational research in MAPF:
 
-1. **Shuo Liang, Roni Stern, Jiaoyang Li.** "Real-Time LaCAM." *Symposium on Combinatorial Search (SoCS)*, 2025. [arXiv:2504.06091](https://arxiv.org/abs/2504.06091)
+1. **Runzhe Liang, Rishi Veerapaneni, Daniel Harabor, Jiaoyang Li, Maxim Likhachev.** "Real-Time LaCAM for Real-Time MAPF." *International Symposium on Combinatorial Search (SoCS)*, 2025. [arXiv:2504.06091](https://arxiv.org/abs/2504.06091)
    — The primary reference for the real-time incremental DFS with re-rooting and completeness guarantees.
 
 2. **Keisuke Okumura.** "LaCAM: Search-Based Algorithm for Quick Multi-Agent Pathfinding." *AAAI Conference on Artificial Intelligence*, 2023. [arXiv:2211.13432](https://arxiv.org/abs/2211.13432)
@@ -174,13 +174,13 @@ This implementation is based on the following papers. We are grateful to the aut
 3. **Keisuke Okumura.** "LaCAM*: Anytime Multi-Agent Pathfinding via Large Neighborhood Search." *IJCAI*, 2024. [arXiv:2305.03632](https://arxiv.org/abs/2305.03632)
    — LaCAM\* extension with Dijkstra cost refinement for improved solution quality.
 
-4. **Keisuke Okumura.** "Priority Inheritance with Backtracking for Iterative Multi-Agent Path Finding." *Artificial Intelligence*, 2022. [arXiv:2005.13948](https://arxiv.org/abs/2005.13948)
+4. **Keisuke Okumura, Manao Machida, Xavier Défago, Yasumasa Tamura.** "Priority Inheritance with Backtracking for Iterative Multi-agent Path Finding." *Artificial Intelligence*, 2022. [arXiv:1901.11282](https://arxiv.org/abs/1901.11282)
    — PIBT: the single-step configuration generator used inside LaCAM.
 
-5. **Yifan Bai, Rishi Veerapaneni, Jiaoyang Li.** "Scaling Lifelong Multi-Agent Path Finding to More Realistic Settings." *AAAI Workshop on Multi-Agent Path Finding (WoMAPF)*, 2025. [arXiv:2410.01798](https://arxiv.org/abs/2410.01798)
+5. **He Jiang, Yulun Zhang, Rishi Veerapaneni, Jiaoyang Li.** "Scaling Lifelong Multi-Agent Path Finding to More Realistic Settings: Research Challenges and Opportunities." *Symposium on Combinatorial Search (SoCS)*, 2024. [arXiv:2404.16162](https://arxiv.org/abs/2404.16162)
    — Analysis of windowed MAPF completeness and the need for persistent search state in lifelong settings.
 
-6. **Yimin Tang, Zhongqiang Ren, Jiaoyang Li, Katia Sycara.** "Lightweight Traffic Map for Anytime LaCAM*." 2026. [arXiv:2603.07891](https://arxiv.org/abs/2603.07891)
+6. **Bojie Shen, Yue Zhang, Zhe Chen, Daniel Harabor.** "A Lightweight Traffic Map for Efficient Anytime LaCAM*." 2025. [arXiv:2603.07891](https://arxiv.org/abs/2603.07891)
    — Dynamic congestion guidance for LaCAM\*, showing continued research interest in the LaCAM family.
 
 ## Acknowledgments
@@ -188,7 +188,7 @@ This implementation is based on the following papers. We are grateful to the aut
 This project was inspired by the excellent work of:
 
 - **Keisuke Okumura** ([@Kei18](https://github.com/Kei18)) for the original LaCAM and [py-lacam](https://github.com/Kei18/py-lacam) reference implementation.
-- **Shuo Liang, Roni Stern, and Jiaoyang Li** for the Real-Time LaCAM paper that made incremental lifelong MAPF practical.
+- **Runzhe Liang, Rishi Veerapaneni, Daniel Harabor, Jiaoyang Li, and Maxim Likhachev** for the Real-Time LaCAM paper that made incremental lifelong MAPF practical.
 - **Jiaoyang Li** and the MAPF research community for their continued work on scalable multi-agent coordination.
 
 The Zig implementation was built from scratch following the algorithm descriptions in the above papers, with the [py-lacam](https://github.com/Kei18/py-lacam) Python implementation serving as a reference for correctness verification.
