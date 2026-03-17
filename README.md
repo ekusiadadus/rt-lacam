@@ -37,7 +37,7 @@ cd rt-lacam
 zig build                          # build native library
 zig build test --summary all       # run 86 Zig tests
 pip install -e ".[dev]"            # install Python package with dev deps
-pytest -v                          # run 17 Python tests
+pytest -v                          # run 29 Python tests
 ```
 
 ### Build Wheel
@@ -132,7 +132,7 @@ Number of explored configurations.
 
 ```
 rt-lacam/
-├── src/                     # Zig core (~1100 lines, 86 tests)
+├── src/                     # Zig core (~3000 lines, 86 tests)
 │   ├── solver.zig           # RT-LaCAM: incremental DFS + reroot
 │   ├── pibt.zig             # PIBT configuration generator
 │   ├── high_level_node.zig  # Configuration-space search node
@@ -171,7 +171,7 @@ This implementation is based on the following papers. We are grateful to the aut
 2. **Keisuke Okumura.** "LaCAM: Search-Based Algorithm for Quick Multi-Agent Pathfinding." *AAAI Conference on Artificial Intelligence*, 2023. [arXiv:2211.13432](https://arxiv.org/abs/2211.13432)
    — The original LaCAM algorithm: two-level lazy DFS in configuration space with PIBT.
 
-3. **Keisuke Okumura.** "LaCAM*: Anytime Multi-Agent Pathfinding via Large Neighborhood Search." *IJCAI*, 2024. [arXiv:2305.03632](https://arxiv.org/abs/2305.03632)
+3. **Keisuke Okumura.** "Improving LaCAM for Scalable Eventually Optimal Multi-Agent Pathfinding." *IJCAI*, 2023. [arXiv:2305.03632](https://arxiv.org/abs/2305.03632)
    — LaCAM\* extension with Dijkstra cost refinement for improved solution quality.
 
 4. **Keisuke Okumura, Manao Machida, Xavier Défago, Yasumasa Tamura.** "Priority Inheritance with Backtracking for Iterative Multi-agent Path Finding." *Artificial Intelligence*, 2022. [arXiv:1901.11282](https://arxiv.org/abs/1901.11282)
@@ -180,7 +180,7 @@ This implementation is based on the following papers. We are grateful to the aut
 5. **He Jiang, Yulun Zhang, Rishi Veerapaneni, Jiaoyang Li.** "Scaling Lifelong Multi-Agent Path Finding to More Realistic Settings: Research Challenges and Opportunities." *Symposium on Combinatorial Search (SoCS)*, 2024. [arXiv:2404.16162](https://arxiv.org/abs/2404.16162)
    — Analysis of windowed MAPF completeness and the need for persistent search state in lifelong settings.
 
-6. **Bojie Shen, Yue Zhang, Zhe Chen, Daniel Harabor.** "A Lightweight Traffic Map for Efficient Anytime LaCAM*." 2025. [arXiv:2603.07891](https://arxiv.org/abs/2603.07891)
+6. **Bojie Shen, Yue Zhang, Zhe Chen, Daniel Harabor.** "A Lightweight Traffic Map for Efficient Anytime LaCAM*." 2026. [arXiv:2603.07891](https://arxiv.org/abs/2603.07891)
    — Dynamic congestion guidance for LaCAM\*, showing continued research interest in the LaCAM family.
 
 ## Acknowledgments
