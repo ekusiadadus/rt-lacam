@@ -21,6 +21,14 @@ High-performance Zig core with Python bindings via cffi.
 
 ## Installation
 
+### From PyPI
+
+```bash
+pip install rt-lacam
+```
+
+> **Note:** Pre-built wheels are currently available for macOS (Apple Silicon). Other platforms will build from source (requires Zig >= 0.15.0).
+
 ### From Source (requires [Zig >= 0.15.0](https://ziglang.org/download/))
 
 ```bash
