@@ -33,6 +33,7 @@ pub const Solver = struct {
     dist_tables: []DistTable,
     pibt: PIBT,
     current_node: *HighLevelNode,
+    prev_node: ?*HighLevelNode, // track previous node to prevent oscillation
     goal_node: ?*HighLevelNode,
     prng: std.Random.DefaultPrng,
 
@@ -136,6 +137,7 @@ pub const Solver = struct {
             .dist_tables = dist_tables,
             .pibt = pibt,
             .current_node = n_init,
+            .prev_node = null,
             .goal_node = null,
             .prng = prng,
             .allocator = allocator,
@@ -333,13 +335,25 @@ pub const Solver = struct {
             break :blk node;
         };
 
-        // Swap parent pointer (re-root)
+        // Track previous node for oscillation prevention
+        self.prev_node = self.current_node;
+
+        // Re-root: update parent pointers so goal path can pass through new_node.
+        // Case 1: new_node was a direct child of current_node in the DFS tree
         if (new_node.parent == self.current_node) {
             new_node.parent = null;
+            self.current_node.parent = new_node;
+        } else {
+            // Case 2: new_node's parent is some other node (or null).
+            // Ensure bidirectional connectivity and set parent toward current_node.
             self.current_node.parent = new_node;
         }
 
         self.current_node = new_node;
+
+        // Keep goal_node intact — extractNextConfig uses BFS through
+        // neighbor graph when parent chain is broken, so goal_node
+        // remains valid as a BFS target.
 
         // Ensure continued exploration
         self.open.pushFront(new_node) catch {};
@@ -400,19 +414,13 @@ pub const Solver = struct {
     fn extractNextConfig(self: *Solver) ?Config {
         const gn = self.goal_node orelse return null;
 
-        // Backtrack from goal to find path
-        var path_len: u32 = 0;
+        // Fast path: backtrack from goal through parents to find current_node
         var n: ?*HighLevelNode = gn;
-        while (n != null) : (n = n.?.parent) {
-            path_len += 1;
-        }
-
-        // Find current_node in path, return next
-        n = gn;
         var prev: ?*HighLevelNode = null;
-        while (n != null) {
+        var steps: u32 = 0;
+        const max_steps = self.explored.count() + 1;
+        while (n != null and steps < max_steps) : (steps += 1) {
             if (n.? == self.current_node) {
-                // Return the config after current_node toward goal
                 if (prev) |p| return p.config;
                 return null; // Already at goal
             }
@@ -420,25 +428,88 @@ pub const Solver = struct {
             n = n.?.parent;
         }
 
-        // current_node not on best path — try direct neighbor toward goal
-        return self.greedyNextStep();
+        // Parent chain broken after reroot — BFS through neighbor graph
+        return self.bfsNextStep(gn);
     }
 
-    fn greedyNextStep(self: *Solver) ?Config {
-        // Find neighbor with lowest h value
+    fn bfsNextStep(self: *Solver, target: *HighLevelNode) ?Config {
+        // BFS from current_node to target through neighbor graph.
+        // Returns the config of the first step toward target.
+        const max_nodes = self.explored.count();
+        if (max_nodes == 0) return null;
+
+        // came_from: maps node -> predecessor on BFS path
+        var came_from = std.AutoHashMap(*HighLevelNode, ?*HighLevelNode).init(self.allocator);
+        defer came_from.deinit();
+
+        var queue = Deque(*HighLevelNode).init(self.allocator);
+        defer queue.deinit();
+
+        came_from.put(self.current_node, null) catch return null;
+        queue.pushBack(self.current_node) catch return null;
+
+        var found = false;
+        var visited: u32 = 0;
+
+        while (!queue.isEmpty() and visited < max_nodes) {
+            visited += 1;
+            const node = queue.popFront() orelse break;
+
+            var nit = node.neighbors.iterator();
+            while (nit.next()) |entry| {
+                const neighbor = entry.key_ptr.*;
+                if (came_from.contains(neighbor)) continue;
+
+                came_from.put(neighbor, node) catch continue;
+
+                if (neighbor == target) {
+                    found = true;
+                    break;
+                }
+                queue.pushBack(neighbor) catch {};
+            }
+            if (found) break;
+        }
+
+        if (!found) {
+            // Target not reachable via neighbors — fall back to h-greedy
+            return self.hGreedyNextStep();
+        }
+
+        // Trace back from target to find the first step after current_node
+        var walk: *HighLevelNode = target;
+        var trace_steps: u32 = 0;
+        while (trace_steps < max_nodes) : (trace_steps += 1) {
+            const pred_opt = came_from.get(walk) orelse return null;
+            const pred = pred_opt orelse return walk.config; // pred is current_node
+            if (pred == self.current_node) {
+                return walk.config;
+            }
+            walk = pred;
+        }
+        return null;
+    }
+
+    fn hGreedyNextStep(self: *Solver) ?Config {
+        // Last resort: pick neighbor with lowest h, excluding prev_node
         var nit = self.current_node.neighbors.iterator();
         var best: ?*HighLevelNode = null;
-        var best_f: i32 = std.math.maxInt(i32);
+        var best_h: i32 = std.math.maxInt(i32);
+        var fallback: ?*HighLevelNode = null;
 
         while (nit.next()) |entry| {
             const neighbor = entry.key_ptr.*;
-            if (neighbor.f < best_f) {
-                best_f = neighbor.f;
+            if (self.prev_node != null and neighbor == self.prev_node.?) {
+                if (fallback == null) fallback = neighbor;
+                continue;
+            }
+            if (neighbor.h < best_h) {
+                best_h = neighbor.h;
                 best = neighbor;
             }
         }
-
-        if (best) |b| return b.config;
+        const chosen = best orelse fallback;
+        if (chosen) |b| return b.config;
         return null;
     }
 

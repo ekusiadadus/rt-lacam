@@ -207,6 +207,108 @@ class TestIsSolved:
                     assert not solver.is_solved(result)
 
 
+class TestOscillationPrevention:
+    """RT-LaCAM must not oscillate during step+reroot cycles."""
+
+    def test_no_oscillation_single_agent(self):
+        """Single agent: step→reroot cycle must make monotonic progress."""
+        grid = [[1] * 6 for _ in range(9)]  # 6x9 grid (matches toio mat)
+        with RTLaCAM(grid, starts=[(0, 0)], goals=[(8, 5)], seed=42) as solver:
+            pos = [(0, 0)]
+            history = [pos[0]]
+            for _ in range(30):
+                result = solver.step(deadline_ms=200)
+                if result is not None:
+                    pos = result
+                    solver.reroot(pos)
+                    history.append(pos[0])
+                if solver.is_solved(pos):
+                    break
+            # Should reach goal (or at least make progress)
+            assert len(history) > 2
+            # Check no A→B→A oscillation
+            for j in range(2, len(history)):
+                if history[j] == history[j - 2] and history[j] != history[j - 1]:
+                    pytest.fail(
+                        f"Oscillation at step {j}: "
+                        f"{history[j-2]}→{history[j-1]}→{history[j]}"
+                    )
+
+    def test_no_oscillation_two_agents_congested(self):
+        """Two agents on narrow grid: must not oscillate."""
+        grid = [[1] * 3 for _ in range(5)]  # 3x5 narrow grid
+        with RTLaCAM(
+            grid,
+            starts=[(0, 0), (4, 2)],
+            goals=[(4, 2), (0, 0)],
+            seed=42,
+        ) as solver:
+            pos = [(0, 0), (4, 2)]
+            history = [tuple(pos)]
+            for _ in range(50):
+                result = solver.step(deadline_ms=200)
+                if result is not None:
+                    pos = result
+                    solver.reroot(pos)
+                    history.append(tuple(pos))
+                if solver.is_solved(pos):
+                    break
+            # Check no oscillation
+            for j in range(2, len(history)):
+                if history[j] == history[j - 2] and history[j] != history[j - 1]:
+                    pytest.fail(
+                        f"Oscillation at step {j}: "
+                        f"{history[j-2]}→{history[j-1]}→{history[j]}"
+                    )
+
+    def test_no_oscillation_four_agents_swap(self):
+        """Four agents doing pairwise swap: stress test for oscillation."""
+        grid = [[1] * 6 for _ in range(9)]
+        with RTLaCAM(
+            grid,
+            starts=[(0, 0), (0, 5), (8, 0), (8, 5)],
+            goals=[(8, 5), (8, 0), (0, 5), (0, 0)],
+            seed=42,
+        ) as solver:
+            pos = [(0, 0), (0, 5), (8, 0), (8, 5)]
+            history = [tuple(pos)]
+            for _ in range(80):
+                result = solver.step(deadline_ms=200)
+                if result is not None:
+                    pos = result
+                    solver.reroot(pos)
+                    history.append(tuple(pos))
+                if solver.is_solved(pos):
+                    break
+            for j in range(2, len(history)):
+                if history[j] == history[j - 2] and history[j] != history[j - 1]:
+                    pytest.fail(
+                        f"Oscillation at step {j}: "
+                        f"{history[j-2]}→{history[j-1]}→{history[j]}"
+                    )
+
+    def test_reaches_goal_via_step_reroot(self):
+        """Full step→reroot cycle must eventually reach goal."""
+        grid = [[1] * 6 for _ in range(9)]
+        with RTLaCAM(
+            grid,
+            starts=[(0, 0), (8, 5)],
+            goals=[(8, 5), (0, 0)],
+            seed=42,
+        ) as solver:
+            pos = [(0, 0), (8, 5)]
+            for step in range(100):
+                result = solver.step(deadline_ms=200)
+                if result is not None:
+                    pos = result
+                    solver.reroot(pos)
+                if solver.is_solved(pos):
+                    break
+            assert solver.is_solved(pos), (
+                f"Failed to reach goal after 100 steps. Final pos: {pos}"
+            )
+
+
 class TestLaCAMStar:
     def test_lacam_star_finds_solution(self):
         grid = [[1] * 5 for _ in range(5)]
