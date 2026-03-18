@@ -391,7 +391,23 @@ pub const Solver = struct {
             }
         }
 
-        return self.extractNextConfig();
+        const next_config = self.extractNextConfig();
+
+        // Record committed moves to traffic map ONLY for the actual
+        // next configuration (not speculative DFS branches).
+        if (next_config) |cfg| {
+            if (self.traffic_map) |*tm| {
+                for (0..self.num_agents) |idx| {
+                    const agent_i: u32 = @intCast(idx);
+                    tm.recordCommitted(
+                        self.current_node.config.get(agent_i),
+                        cfg.get(agent_i),
+                    );
+                }
+            }
+        }
+
+        return next_config;
     }
 
     /// Re-root DFS tree after agents move to new positions.
@@ -473,13 +489,10 @@ pub const Solver = struct {
             return null;
         }
 
-        // Record committed actions to traffic map
-        if (self.traffic_map) |*tm| {
-            for (0..self.num_agents) |idx| {
-                const agent_i: u32 = @intCast(idx);
-                tm.recordCommitted(n.config.get(agent_i), q_to.get(agent_i));
-            }
-        }
+        // NOTE: Traffic map recording moved to stepInternal after
+        // extractNextConfig succeeds — recording during DFS exploration
+        // pollutes the map with hypothetical moves, degrading PIBT
+        // candidate sorting in dense scenarios.
 
         return q_to;
     }

@@ -200,22 +200,29 @@ pub const PIBT = struct {
     };
 
     fn guidedLessThan(ctx: SortCtx, a: Coord, b: Coord) bool {
-        // 1. Prefer guidance match (binary preference)
-        if (ctx.guidance_hint) |hint| {
-            const a_match = a.eql(hint);
-            const b_match = b.eql(hint);
-            if (a_match and !b_match) return true;
-            if (!a_match and b_match) return false;
-        }
-        // 2. Distance + traffic penalty
+        // Cost = base distance + traffic penalty + guidance bonus.
+        // Guidance is a soft preference (small penalty for non-match)
+        // rather than a hard binary preference — hard preference causes
+        // PIBT failures in dense scenarios by over-constraining choices.
         const a_base = ctx.dist_table.get(a);
         const b_base = ctx.dist_table.get(b);
+
+        var a_cost = a_base;
+        var b_cost = b_base;
+
+        // Traffic map penalty
         if (ctx.traffic_map) |tm| {
-            const a_cost = a_base +| tm.getPenalty(ctx.from, a);
-            const b_cost = b_base +| tm.getPenalty(ctx.from, b);
-            return a_cost < b_cost;
+            a_cost = a_cost +| tm.getPenalty(ctx.from, a);
+            b_cost = b_cost +| tm.getPenalty(ctx.from, b);
         }
-        return a_base < b_base;
+
+        // Guidance: subtract 1 from matching candidate (soft bonus)
+        if (ctx.guidance_hint) |hint| {
+            if (a.eql(hint) and a_cost > 0) a_cost -= 1;
+            if (b.eql(hint) and b_cost > 0) b_cost -= 1;
+        }
+
+        return a_cost < b_cost;
     }
 
     fn compareDist(dist_tbl: *DistTable, a: Coord, b: Coord) bool {
