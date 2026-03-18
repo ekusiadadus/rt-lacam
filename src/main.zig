@@ -12,6 +12,8 @@ pub const pibt = @import("pibt.zig");
 pub const low_level_node = @import("low_level_node.zig");
 pub const high_level_node = @import("high_level_node.zig");
 pub const solver = @import("solver.zig");
+pub const traffic_map = @import("traffic_map.zig");
+pub const local_guidance = @import("local_guidance.zig");
 
 // Pull in all tests from submodules
 comptime {
@@ -23,4 +25,6 @@ comptime {
     _ = low_level_node;
     _ = high_level_node;
     _ = solver;
+    _ = traffic_map;
+    _ = local_guidance;
 }

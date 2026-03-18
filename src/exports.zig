@@ -20,7 +20,7 @@ const Solver = @import("solver.zig").Solver;
 
 /// Return library version as packed integer: 0xMMmmpp (major, minor, patch).
 export fn rtlacam_version() callconv(.c) u32 {
-    return 0x000102; // 0.1.2
+    return 0x000200; // 0.2.0
 }
 
 /// Create a new RT-LaCAM solver instance.
@@ -144,4 +144,41 @@ export fn rtlacam_num_agents(solver: ?*Solver) callconv(.c) u32 {
 export fn rtlacam_has_goal(solver: ?*Solver) callconv(.c) bool {
     const s = solver orelse return false;
     return s.goal_node != null;
+}
+
+/// Create solver with traffic map and/or local guidance.
+///
+/// Extensions:
+///   flg_traffic_map:     accumulate edge usage to penalize congested paths
+///   flg_local_guidance:  compute per-agent directional hints via reservation
+///
+/// References:
+///   - Traffic Map: Shen et al., arXiv:2603.07891 (2026)
+///   - Local Guidance: Arita & Okumura, arXiv:2510.19072 (2025)
+export fn rtlacam_create_guided(
+    grid_ptr: [*]const u8,
+    width: u32,
+    height: u32,
+    starts_ptr: [*]const i32,
+    goals_ptr: [*]const i32,
+    n_agents: u32,
+    flg_star: bool,
+    flg_traffic_map: bool,
+    flg_local_guidance: bool,
+    seed: u64,
+) callconv(.c) ?*Solver {
+    if (!validateInput(width, height, n_agents)) return null;
+    return Solver.initFromFlatGuided(
+        std.heap.c_allocator,
+        grid_ptr,
+        width,
+        height,
+        starts_ptr,
+        goals_ptr,
+        n_agents,
+        flg_star,
+        flg_traffic_map,
+        flg_local_guidance,
+        seed,
+    ) catch null;
 }

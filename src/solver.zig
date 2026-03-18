@@ -17,6 +17,8 @@ const DistTable = @import("dist_table.zig").DistTable;
 const NIL_DIST = @import("dist_table.zig").NIL_DIST;
 const Deque = @import("deque.zig").Deque;
 const PIBT = @import("pibt.zig").PIBT;
+const TrafficMap = @import("traffic_map.zig").TrafficMap;
+const LocalGuidance = @import("local_guidance.zig").LocalGuidance;
 const LowLevelNode = @import("low_level_node.zig").LowLevelNode;
 const HighLevelNode = @import("high_level_node.zig").HighLevelNode;
 
@@ -26,6 +28,8 @@ pub const Solver = struct {
     goals: Config,
     num_agents: u32,
     flg_star: bool,
+    flg_traffic_map: bool,
+    flg_local_guidance: bool,
 
     // Persistent search state
     open: Deque(*HighLevelNode),
@@ -35,6 +39,8 @@ pub const Solver = struct {
     current_node: *HighLevelNode,
     prev_node: ?*HighLevelNode, // track previous node to prevent oscillation
     goal_node: ?*HighLevelNode,
+    traffic_map: ?TrafficMap,
+    local_guidance: ?LocalGuidance,
     prng: std.Random.DefaultPrng,
 
     allocator: Allocator,
@@ -73,7 +79,45 @@ pub const Solver = struct {
         const starts = Config{ .positions = starts_pos };
         const goals = Config{ .positions = goals_pos };
 
-        return try initInternal(allocator, grid, starts, goals, n_agents, flg_star, seed);
+        return try initInternal(allocator, grid, starts, goals, n_agents, flg_star, false, false, seed);
+    }
+
+    /// Initialize from flat arrays with guidance flags.
+    pub fn initFromFlatGuided(
+        allocator: Allocator,
+        grid_ptr: [*]const u8,
+        width: u32,
+        height: u32,
+        starts_ptr: [*]const i32,
+        goals_ptr: [*]const i32,
+        n_agents: u32,
+        flg_star: bool,
+        flg_traffic_map: bool,
+        flg_local_guidance: bool,
+        seed: u64,
+    ) !*Solver {
+        if (width == 0 or height == 0 or n_agents == 0) return error.InvalidArgument;
+        if (n_agents > std.math.maxInt(u32) / 2) return error.InvalidArgument;
+
+        const grid_size = @as(usize, width) * @as(usize, height);
+        const grid_raw = grid_ptr[0..grid_size];
+        const flat_len: usize = @as(usize, n_agents) * 2;
+        const starts_flat = starts_ptr[0..flat_len];
+        const goals_flat = goals_ptr[0..flat_len];
+
+        var grid = try Grid.init(allocator, grid_raw, width, height);
+        errdefer grid.deinit();
+
+        const starts_pos = try allocator.alloc(Coord, n_agents);
+        const goals_pos = try allocator.alloc(Coord, n_agents);
+        for (0..n_agents) |i| {
+            starts_pos[i] = .{ .y = starts_flat[i * 2], .x = starts_flat[i * 2 + 1] };
+            goals_pos[i] = .{ .y = goals_flat[i * 2], .x = goals_flat[i * 2 + 1] };
+        }
+        const starts = Config{ .positions = starts_pos };
+        const goals = Config{ .positions = goals_pos };
+
+        return try initInternal(allocator, grid, starts, goals, n_agents, flg_star, flg_traffic_map, flg_local_guidance, seed);
     }
 
     /// Initialize solver from Zig types (for testing).
@@ -86,7 +130,22 @@ pub const Solver = struct {
         seed: u64,
     ) !*Solver {
         const n: u32 = @intCast(starts.len());
-        return try initInternal(allocator, grid, starts, goals, n, flg_star, seed);
+        return try initInternal(allocator, grid, starts, goals, n, flg_star, false, false, seed);
+    }
+
+    /// Initialize from Zig types with guidance flags (for testing).
+    pub fn initFromConfigsGuided(
+        allocator: Allocator,
+        grid: Grid,
+        starts: Config,
+        goals: Config,
+        flg_star: bool,
+        flg_traffic_map: bool,
+        flg_local_guidance: bool,
+        seed: u64,
+    ) !*Solver {
+        const n: u32 = @intCast(starts.len());
+        return try initInternal(allocator, grid, starts, goals, n, flg_star, flg_traffic_map, flg_local_guidance, seed);
     }
 
     fn initInternal(
@@ -96,6 +155,8 @@ pub const Solver = struct {
         goals: Config,
         n_agents: u32,
         flg_star: bool,
+        flg_traffic_map: bool,
+        flg_local_guidance: bool,
         seed: u64,
     ) !*Solver {
         const self = try allocator.create(Solver);
@@ -109,6 +170,16 @@ pub const Solver = struct {
 
         // Initialize PIBT
         const pibt = try PIBT.init(allocator, dist_tables, &grid, n_agents, seed);
+
+        // Initialize optional enhancements
+        var traffic_map: ?TrafficMap = null;
+        if (flg_traffic_map) {
+            traffic_map = try TrafficMap.init(allocator, grid.width, grid.height, 10);
+        }
+        var local_guidance: ?LocalGuidance = null;
+        if (flg_local_guidance) {
+            local_guidance = try LocalGuidance.init(allocator, n_agents, grid.width, grid.height);
+        }
 
         // Initialize search
         var open = Deque(*HighLevelNode).init(allocator);
@@ -132,6 +203,8 @@ pub const Solver = struct {
             .goals = goals_owned,
             .num_agents = n_agents,
             .flg_star = flg_star,
+            .flg_traffic_map = flg_traffic_map,
+            .flg_local_guidance = flg_local_guidance,
             .open = open,
             .explored = explored,
             .dist_tables = dist_tables,
@@ -139,6 +212,8 @@ pub const Solver = struct {
             .current_node = n_init,
             .prev_node = null,
             .goal_node = null,
+            .traffic_map = traffic_map,
+            .local_guidance = local_guidance,
             .prng = prng,
             .allocator = allocator,
         };
@@ -147,6 +222,11 @@ pub const Solver = struct {
         self.pibt.grid = &self.grid;
         for (0..n_agents) |i| {
             self.dist_tables[i].grid = &self.grid;
+        }
+
+        // Wire optional enhancements to PIBT
+        if (self.traffic_map != null) {
+            self.pibt.traffic_map = &self.traffic_map.?;
         }
 
         return self;
@@ -173,6 +253,8 @@ pub const Solver = struct {
         self.allocator.free(self.dist_tables);
 
         self.pibt.deinit();
+        if (self.traffic_map) |*tm| tm.deinit();
+        if (self.local_guidance) |*lg| lg.deinit();
         self.goals.free(self.allocator);
         self.grid.deinit();
         self.allocator.destroy(self);
@@ -198,6 +280,17 @@ pub const Solver = struct {
 
     /// Run incremental DFS, return next Config or null.
     pub fn stepInternal(self: *Solver, deadline_ms: u32) ?Config {
+        // Compute local guidance from current physical position
+        if (self.local_guidance) |*lg| {
+            lg.compute(
+                self.current_node.config,
+                self.current_node.order,
+                self.dist_tables,
+                &self.grid,
+            );
+            self.pibt.guidance_hints = lg.hints;
+        }
+
         const start_ns = std.time.nanoTimestamp();
         const deadline_ns = start_ns + @as(i128, deadline_ms) * 1_000_000;
 
@@ -379,6 +472,15 @@ pub const Solver = struct {
             q_to.free(self.allocator);
             return null;
         }
+
+        // Record committed actions to traffic map
+        if (self.traffic_map) |*tm| {
+            for (0..self.num_agents) |idx| {
+                const agent_i: u32 = @intCast(idx);
+                tm.recordCommitted(n.config.get(agent_i), q_to.get(agent_i));
+            }
+        }
+
         return q_to;
     }
 

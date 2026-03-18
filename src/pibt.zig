@@ -10,6 +10,7 @@ const Config = @import("config.zig").Config;
 const Grid = @import("grid.zig").Grid;
 const MAX_NEIGHBORS = @import("grid.zig").MAX_NEIGHBORS;
 const DistTable = @import("dist_table.zig").DistTable;
+const TrafficMap = @import("traffic_map.zig").TrafficMap;
 
 pub const PIBT = struct {
     dist_tables: []DistTable,
@@ -24,6 +25,10 @@ pub const PIBT = struct {
 
     prng: std.Random.DefaultPrng,
     allocator: Allocator,
+
+    // Optional enhancements (set by solver before step)
+    traffic_map: ?*TrafficMap = null,
+    guidance_hints: ?[]?Coord = null,
 
     pub fn init(
         allocator: Allocator,
@@ -137,9 +142,19 @@ pub const PIBT = struct {
         // Shuffle for tie-breaking
         self.shuffleCoords(cands[0..total_cands]);
 
-        // Sort by distance to goal (ascending)
+        // Sort candidates (with optional guidance and traffic awareness)
         const dist_tbl = &self.dist_tables[@intCast(i)];
-        std.mem.sort(Coord, cands[0..total_cands], dist_tbl, compareDist);
+        if (self.traffic_map != null or self.guidance_hints != null) {
+            const sort_ctx = SortCtx{
+                .dist_table = dist_tbl,
+                .traffic_map = self.traffic_map,
+                .guidance_hint = if (self.guidance_hints) |h| h[@intCast(i)] else null,
+                .from = v_from,
+            };
+            std.mem.sort(Coord, cands[0..total_cands], sort_ctx, guidedLessThan);
+        } else {
+            std.mem.sort(Coord, cands[0..total_cands], dist_tbl, compareDist);
+        }
 
         // Try each candidate
         for (0..total_cands) |k| {
@@ -174,6 +189,33 @@ pub const PIBT = struct {
         q_to.set(i, v_from);
         self.setOccNxt(v_from, @intCast(i));
         return false;
+    }
+
+    /// Sorting context for traffic-map and guidance-aware candidate ordering.
+    const SortCtx = struct {
+        dist_table: *DistTable,
+        traffic_map: ?*TrafficMap,
+        guidance_hint: ?Coord,
+        from: Coord,
+    };
+
+    fn guidedLessThan(ctx: SortCtx, a: Coord, b: Coord) bool {
+        // 1. Prefer guidance match (binary preference)
+        if (ctx.guidance_hint) |hint| {
+            const a_match = a.eql(hint);
+            const b_match = b.eql(hint);
+            if (a_match and !b_match) return true;
+            if (!a_match and b_match) return false;
+        }
+        // 2. Distance + traffic penalty
+        const a_base = ctx.dist_table.get(a);
+        const b_base = ctx.dist_table.get(b);
+        if (ctx.traffic_map) |tm| {
+            const a_cost = a_base +| tm.getPenalty(ctx.from, a);
+            const b_cost = b_base +| tm.getPenalty(ctx.from, b);
+            return a_cost < b_cost;
+        }
+        return a_base < b_base;
     }
 
     fn compareDist(dist_tbl: *DistTable, a: Coord, b: Coord) bool {

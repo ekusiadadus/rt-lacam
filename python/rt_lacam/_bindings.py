@@ -36,6 +36,14 @@ _CDEF = """
     uint32_t rtlacam_explored_size(void* solver);
     uint32_t rtlacam_num_agents(void* solver);
     bool rtlacam_has_goal(void* solver);
+
+    void* rtlacam_create_guided(
+        const uint8_t* grid, uint32_t width, uint32_t height,
+        const int32_t* starts, const int32_t* goals,
+        uint32_t n_agents, bool flg_star,
+        bool flg_traffic_map, bool flg_local_guidance,
+        uint64_t seed
+    );
 """
 
 
@@ -117,6 +125,8 @@ class RTLaCAM:
         *,
         flg_star: bool = False,
         seed: Optional[int] = None,
+        traffic_map: bool = False,
+        local_guidance: bool = False,
     ) -> None:
         height = len(grid)
         width = len(grid[0]) if height > 0 else 0
@@ -176,7 +186,16 @@ class RTLaCAM:
             goals_buf[i * 2] = gy
             goals_buf[i * 2 + 1] = gx
 
-        if seed is not None:
+        if traffic_map or local_guidance:
+            effective_seed = seed if seed is not None else 0
+            self._handle = _lib.rtlacam_create_guided(
+                grid_buf, width, height,
+                starts_buf, goals_buf,
+                n_agents, flg_star,
+                traffic_map, local_guidance,
+                effective_seed,
+            )
+        elif seed is not None:
             self._handle = _lib.rtlacam_create_seeded(
                 grid_buf, width, height,
                 starts_buf, goals_buf,
