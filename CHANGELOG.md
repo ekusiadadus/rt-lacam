@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.1] - 2026-03-18
+
+### Fixed
+
+- **Traffic map recording moved to post-step**: Traffic map was being updated
+  during DFS exploration (every `configurationGenerator` call), polluting the
+  map with hypothetical moves. Now only records the actual committed move after
+  `extractNextConfig` succeeds. This caused guided mode to fail entirely with
+  29+ agents on a 6×9 grid (52k nodes explored, no solution found).
+
+- **Local guidance changed from hard to soft preference**: Guidance hints used
+  a binary preference (always prefer guidance-matching candidate), which
+  over-constrained PIBT in dense grids and caused cascading failures. Changed
+  to a soft cost bonus (subtract 1 from matching candidate's distance cost).
+  Result: 29 agents 6×9 grid goes from 52,485 nodes / no solution to 26 nodes
+  / solution found.
+
 ## [0.2.0] - 2026-03-18
 
 ### Added
@@ -32,8 +49,8 @@
 - PIBT struct now carries optional `traffic_map` and `guidance_hints` fields
   (default `null`, backward compatible).
 
-- Solver records committed actions to the traffic map after each PIBT
-  configuration generation.
+- Solver records committed actions to the traffic map after each step
+  (see 0.2.1 fix — originally recorded during DFS exploration).
 
 - Solver computes local guidance hints at the start of each `stepInternal()`
   call from the current physical position.
